@@ -6,7 +6,8 @@ Python FastAPI service. Serves the JSON API under `/api/*` and the static fronte
 
 - FastAPI + Uvicorn
 - `uv` for dependency management (`pyproject.toml`, `uv.lock`)
-- pytest + httpx for tests
+- httpx for OpenRouter calls; python-dotenv to load `.env`
+- pytest for tests
 
 ## Layout
 
@@ -20,11 +21,13 @@ backend/
     auth.py           Session auth: credentials, signed cookie, current_user dep
     db.py             SQLite connection, schema, init_db, get_db dependency
     repository.py     Board data access: seed, get_board, card/column CRUD + move
+    ai.py             OpenRouter client: ask(prompt) -> reply text; AIError
   tests/
     conftest.py       Points PM_DB_PATH at a temp DB so tests never touch pm.db
     test_api.py       Endpoint tests (health, hello, index)
     test_auth.py      Auth tests (login, logout, me, protected board)
     test_board.py     Board tests (seed, rename, card CRUD, move, ordering, auth)
+    test_ai.py        AI tests (missing key error, auth, mocked 2+2, 502 path)
 ```
 
 The Docker image is built from the root `Dockerfile` (multi-stage): stage 1
@@ -45,6 +48,7 @@ inside the image (and is gitignored if generated locally).
 - `PATCH /api/cards/{id}` -> edit a card (`{title, details}`); returns the board.
 - `DELETE /api/cards/{id}` -> delete a card and renumber its column; returns the board.
 - `POST /api/cards/{id}/move` -> move a card (`{column_id, index}`) within/across columns, renumbering both; returns the board.
+- `GET /api/ai/health` -> connectivity smoke test: asks the model "2+2" and returns `{"answer"}`. Requires auth. Returns 502 with a helpful message if the key is missing/invalid or OpenRouter fails.
 - All board endpoints require auth (401 without a valid session) and 404 when a card/column is not found or not owned by the caller.
 - `/` -> Next.js static export (served from `static/` when present), mounted
   last so `/api/*` takes precedence. The mount is skipped if `static/` is
@@ -81,6 +85,17 @@ inside the image (and is gitignored if generated locally).
   position and use a temporary negative range to avoid `UNIQUE(column_id,
   position)` collisions mid-update.
 
+## AI (OpenRouter)
+
+- `app/ai.py` is a minimal OpenRouter client. `ask(prompt)` sends a single-turn
+  chat completion and returns the assistant's reply text.
+- The key is read from `OPENROUTER_API_KEY` (loaded from `.env` via
+  `python-dotenv`). If unset, `ask` raises `AIError` with a clear message; the
+  key is never logged. The model id is fixed to `deepseek/deepseek-v4-flash`.
+- `httpx` is a runtime dependency (also used by Starlette's TestClient). Tests
+  mock `ai.httpx.post`, so they never hit the network.
+- See `.env.example` at the repo root for the required variables.
+
 ## Commands
 
 ```bash
@@ -100,4 +115,6 @@ Run the full stack via Docker using the scripts in `scripts/` (see `scripts/AGEN
 
 ## Notes for later parts
 
-- AI (Parts 8-9): OpenRouter calls using `OPENROUTER_API_KEY` from `.env`, model `deepseek/deepseek-v4-flash`, with Structured Outputs.
+- AI (Part 9): build on `app/ai.py` to send the board JSON + question +
+  conversation history with Structured Outputs, then apply updates via the
+  repository layer.

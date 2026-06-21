@@ -143,15 +143,19 @@ Post-Part-7 fix:
 
 ## Part 8: AI connectivity (OpenRouter smoke test)
 
-- [ ] Backend: load `OPENROUTER_API_KEY` from `.env`; configure model `deepseek/deepseek-v4-flash`.
-- [ ] Implement a minimal AI call helper.
-- [ ] Add a connectivity test endpoint or test that asks "2+2" and checks the response.
-- [ ] Document AI setup in `backend/AGENTS.md`.
+Decisions (confirmed by user):
+- Expose a real connectivity endpoint (not just a test): `GET /api/ai/health` that asks the model "2+2" and returns the answer. Requires auth like other API routes.
+- `httpx` moves from the dev group into runtime dependencies (used by the AI helper). Approved.
+
+- [x] Backend: load `OPENROUTER_API_KEY` from `.env`; configure model `deepseek/deepseek-v4-flash`.
+- [x] Implement a minimal AI call helper (`app/ai.py`: `ask()` + `AIError`).
+- [x] Add a connectivity test endpoint or test that asks "2+2" and checks the response (`GET /api/ai/health`).
+- [x] Document AI setup in `backend/AGENTS.md`.
 
 Tests / success criteria:
-- A "2+2" call returns a sensible answer (e.g., contains "4"), proving connectivity.
-- Missing/invalid API key fails clearly with a helpful error.
-- The key is never logged or committed.
+- A "2+2" call returns a sensible answer (e.g., contains "4"), proving connectivity. (Covered by mocked unit test; verify against the live key via the endpoint when running the stack.)
+- Missing/invalid API key fails clearly with a helpful error (helper raises `AIError`; endpoint returns 502).
+- The key is never logged or committed (`.env` gitignored; `.env.example` added; key only sent in the Authorization header).
 
 ---
 

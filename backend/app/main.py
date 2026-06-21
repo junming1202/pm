@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Response, status
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import repository
+from app import ai, repository
 from app.auth import (
     SESSION_COOKIE,
     create_session_token,
@@ -161,6 +161,16 @@ def move_card(
     if not repository.move_card(db, username, card_id, body.column_id, body.index):
         raise HTTPException(status_code=404, detail="Card or column not found")
     return repository.get_board(db, username)
+
+
+@app.get("/api/ai/health")
+def ai_health(username: str = Depends(current_user)) -> dict[str, str]:
+    """Connectivity smoke test: ask the model "2+2" and return its reply."""
+    try:
+        answer = ai.ask("What is 2+2? Reply with just the number.")
+    except ai.AIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"answer": answer}
 
 
 # Serve the static site at "/". Mounted last so /api routes take precedence.
