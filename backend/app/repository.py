@@ -239,3 +239,60 @@ def move_card(
     for offset, cid in enumerate(dest_ids):
         conn.execute("UPDATE cards SET position = ? WHERE id = ?", (offset, cid))
     return True
+
+
+# --- AI operations -------------------------------------------------------
+
+def _to_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_operation(
+    conn: sqlite3.Connection, username: str, op: dict
+) -> bool:
+    """Apply a single AI-produced board operation. Returns whether it succeeded.
+
+    Operation ids arrive as strings (the board model serializes ids as strings).
+    Unknown types or unresolvable ids are skipped (return False).
+    """
+    op_type = op.get("type")
+    if op_type == "create_card":
+        column_id = _to_int(op.get("column_id"))
+        if column_id is None:
+            return False
+        return create_card(
+            conn, username, column_id, op.get("title", ""), op.get("details", "")
+        ) is not None
+    if op_type == "edit_card":
+        card_id = _to_int(op.get("card_id"))
+        if card_id is None:
+            return False
+        return update_card(
+            conn, username, card_id, op.get("title", ""), op.get("details", "")
+        )
+    if op_type == "move_card":
+        card_id = _to_int(op.get("card_id"))
+        column_id = _to_int(op.get("column_id"))
+        if card_id is None or column_id is None:
+            return False
+        return move_card(conn, username, card_id, column_id, op.get("index", 0))
+    if op_type == "rename_column":
+        column_id = _to_int(op.get("column_id"))
+        if column_id is None:
+            return False
+        return rename_column(conn, username, column_id, op.get("title", ""))
+    return False
+
+
+def apply_operations(
+    conn: sqlite3.Connection, username: str, operations: list[dict]
+) -> list[dict]:
+    """Apply operations in order; return the ones that succeeded."""
+    applied = []
+    for op in operations:
+        if apply_operation(conn, username, op):
+            applied.append(op)
+    return applied

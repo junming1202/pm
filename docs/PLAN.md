@@ -161,17 +161,21 @@ Tests / success criteria:
 
 ## Part 9: AI board reasoning (Structured Outputs)
 
-- [ ] Backend: build the AI request with the board JSON + user question + conversation history.
-- [ ] Define a Structured Outputs schema: a user-facing reply plus an optional board update.
-- [ ] Parse and validate the structured response; apply board updates via the Part 6 data layer.
-- [ ] Define and document the update operation set (create/edit/move card, rename column).
-- [ ] Add a chat endpoint that returns the reply and any applied changes.
+- [x] Backend: build the AI request with the board JSON + user question + conversation history (`ai.chat`).
+- [x] Define a Structured Outputs schema: a user-facing reply plus an optional board update (`reply` + `operations`).
+- [x] Parse and validate the structured response; apply board updates via the Part 6 data layer (`repository.apply_operations`).
+- [x] Define and document the update operation set (create/edit/move card, rename column).
+- [x] Add a chat endpoint that returns the reply and any applied changes (`POST /api/chat` -> `{reply, applied, board}`).
+
+Operation set (each op is `{type, column_id, card_id, title, details, index}`; unused string fields are `''`, unused index `0`):
+- `create_card` (column_id, title, details), `edit_card` (card_id, title, details), `move_card` (card_id, column_id, index), `rename_column` (column_id, title).
 
 Tests / success criteria:
-- Backend tests with mocked AI responses: reply-only, and reply-plus-update cases.
-- Structured output is validated; malformed responses are handled gracefully.
-- Applied updates are persisted and reflected in `GET /api/board`.
-- Conversation history is included in requests.
+- Backend tests with mocked AI responses: reply-only, and reply-plus-update cases. (Done in `test_chat.py`.)
+- Structured output is validated; malformed responses are handled gracefully (invalid JSON / missing fields -> `AIError` -> 502).
+- Applied updates are persisted and reflected in `GET /api/board` (tests assert persistence; invalid ops are skipped, not fatal).
+- Conversation history is included in requests (forwarded as prior messages; test asserts forwarding).
+- Verified live: chat with the real key returns a valid reply + correct `create_card` op referencing the actual column id.
 
 ---
 

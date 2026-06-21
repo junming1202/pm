@@ -20,14 +20,15 @@ backend/
     main.py           FastAPI app: API routes + static mount + DB init
     auth.py           Session auth: credentials, signed cookie, current_user dep
     db.py             SQLite connection, schema, init_db, get_db dependency
-    repository.py     Board data access: seed, get_board, card/column CRUD + move
-    ai.py             OpenRouter client: ask(prompt) -> reply text; AIError
+    repository.py     Board data access: seed, get_board, CRUD + move + apply_operations
+    ai.py             OpenRouter client: ask() smoke test, chat() structured; AIError
   tests/
     conftest.py       Points PM_DB_PATH at a temp DB so tests never touch pm.db
     test_api.py       Endpoint tests (health, hello, index)
     test_auth.py      Auth tests (login, logout, me, protected board)
     test_board.py     Board tests (seed, rename, card CRUD, move, ordering, auth)
     test_ai.py        AI tests (missing key error, auth, mocked 2+2, 502 path)
+    test_chat.py      Chat tests (reply-only, create/rename ops, invalid op, history, 502)
 ```
 
 The Docker image is built from the root `Dockerfile` (multi-stage): stage 1
@@ -49,6 +50,7 @@ inside the image (and is gitignored if generated locally).
 - `DELETE /api/cards/{id}` -> delete a card and renumber its column; returns the board.
 - `POST /api/cards/{id}/move` -> move a card (`{column_id, index}`) within/across columns, renumbering both; returns the board.
 - `GET /api/ai/health` -> connectivity smoke test: asks the model "2+2" and returns `{"answer"}`. Requires auth. Returns 502 with a helpful message if the key is missing/invalid or OpenRouter fails.
+- `POST /api/chat` -> board assistant. Body `{message, history?}` where `history` is `[{role, content}]`. Sends the board JSON + history + message to the model with Structured Outputs, applies any returned operations, and returns `{reply, applied, board}`. Requires auth; 502 if the AI call fails or returns invalid output.
 - All board endpoints require auth (401 without a valid session) and 404 when a card/column is not found or not owned by the caller.
 - `/` -> Next.js static export (served from `static/` when present), mounted
   last so `/api/*` takes precedence. The mount is skipped if `static/` is
@@ -93,8 +95,21 @@ inside the image (and is gitignored if generated locally).
   `python-dotenv`). If unset, `ask` raises `AIError` with a clear message; the
   key is never logged. The model id is fixed to `deepseek/deepseek-v4-flash`.
 - `httpx` is a runtime dependency (also used by Starlette's TestClient). Tests
-  mock `ai.httpx.post`, so they never hit the network.
+  mock `ai.httpx.post` (or `ai.chat`), so they never hit the network.
 - See `.env.example` at the repo root for the required variables.
+- `chat(board, history, question)` uses OpenRouter Structured Outputs
+  (`response_format` json_schema) to force a `{reply, operations}` object. Each
+  operation has a `type` and a fixed set of fields (`column_id`, `card_id`,
+  `title`, `details`, `index`); unused string fields are `''` and unused index
+  is `0` (the schema is `strict`, so all fields are required). Invalid JSON or a
+  missing `reply` raises `AIError`.
+- Operation types and the repository functions they call:
+  - `create_card` (column_id, title, details) -> `create_card`
+  - `edit_card` (card_id, title, details) -> `update_card`
+  - `move_card` (card_id, column_id, index) -> `move_card`
+  - `rename_column` (column_id, title) -> `rename_column`
+  `repository.apply_operations` runs them in order and returns the ones that
+  succeeded; unknown types or unresolvable ids are skipped (not fatal).
 
 ## Commands
 
@@ -115,6 +130,6 @@ Run the full stack via Docker using the scripts in `scripts/` (see `scripts/AGEN
 
 ## Notes for later parts
 
-- AI (Part 9): build on `app/ai.py` to send the board JSON + question +
-  conversation history with Structured Outputs, then apply updates via the
-  repository layer.
+- AI chat UI (Part 10): call `POST /api/chat`, render `reply`, and refresh the
+  board from the returned `board` (or re-fetch `GET /api/board`) when `applied`
+  is non-empty.

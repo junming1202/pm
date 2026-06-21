@@ -55,6 +55,16 @@ class MoveCardRequest(BaseModel):
     index: int
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -171,6 +181,27 @@ def ai_health(username: str = Depends(current_user)) -> dict[str, str]:
     except ai.AIError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     return {"answer": answer}
+
+
+@app.post("/api/chat")
+def chat(
+    body: ChatRequest,
+    username: str = Depends(current_user),
+    db: sqlite3.Connection = Depends(get_db),
+) -> dict:
+    """Ask the AI about the board; apply any operations it returns."""
+    board = repository.get_board(db, username)
+    history = [m.model_dump() for m in body.history]
+    try:
+        result = ai.chat(board, history, body.message)
+    except ai.AIError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    applied = repository.apply_operations(db, username, result["operations"])
+    return {
+        "reply": result["reply"],
+        "applied": applied,
+        "board": repository.get_board(db, username),
+    }
 
 
 # Serve the static site at "/". Mounted last so /api routes take precedence.
