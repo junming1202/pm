@@ -16,11 +16,15 @@ backend/
   uv.lock             Locked dependency versions
   app/
     __init__.py
-    main.py           FastAPI app: API routes + static mount
+    main.py           FastAPI app: API routes + static mount + DB init
     auth.py           Session auth: credentials, signed cookie, current_user dep
+    db.py             SQLite connection, schema, init_db, get_db dependency
+    repository.py     Board data access: seed, get_board, card/column CRUD + move
   tests/
+    conftest.py       Points PM_DB_PATH at a temp DB so tests never touch pm.db
     test_api.py       Endpoint tests (health, hello, index)
     test_auth.py      Auth tests (login, logout, me, protected board)
+    test_board.py     Board tests (seed, rename, card CRUD, move, ordering, auth)
 ```
 
 The Docker image is built from the root `Dockerfile` (multi-stage): stage 1
@@ -35,7 +39,13 @@ inside the image (and is gitignored if generated locally).
 - `POST /api/login` -> validates credentials, sets signed session cookie, returns `{"username"}`. 401 on bad credentials.
 - `POST /api/logout` -> clears the session cookie, returns `{"ok": true}`.
 - `GET /api/me` -> `{"username"}` when authenticated, 401 otherwise.
-- `GET /api/board` -> placeholder, requires auth (real board data lands in Parts 6/7).
+- `GET /api/board` -> the caller's board: `{id, name, columns:[{id,title,cardIds}], cards:{id:{id,title,details}}}`. Auto-creates the board (named "My Board" with five empty default columns) on first access. Requires auth.
+- `PATCH /api/columns/{id}` -> rename a column (`{title}`); returns the updated board.
+- `POST /api/cards` -> create a card (`{column_id, title, details?}`), appended to the column; 201 + board.
+- `PATCH /api/cards/{id}` -> edit a card (`{title, details}`); returns the board.
+- `DELETE /api/cards/{id}` -> delete a card and renumber its column; returns the board.
+- `POST /api/cards/{id}/move` -> move a card (`{column_id, index}`) within/across columns, renumbering both; returns the board.
+- All board endpoints require auth (401 without a valid session) and 404 when a card/column is not found or not owned by the caller.
 - `/` -> Next.js static export (served from `static/` when present), mounted
   last so `/api/*` takes precedence. The mount is skipped if `static/` is
   absent (local backend-only dev), so `GET /` only works in the Docker image
@@ -52,6 +62,24 @@ inside the image (and is gitignored if generated locally).
   any non-local use.
 - `current_user` is a FastAPI dependency that reads/validates the cookie and
   raises 401 if missing/invalid. Protect any route by adding it as a dependency.
+
+## Data layer
+
+- `app/db.py` uses the stdlib `sqlite3` module. The DB file path defaults to
+  `backend/pm.db` and can be overridden via `PM_DB_PATH` (tests use a temp file).
+- `init_db()` creates the file and schema if missing; it runs at app startup via
+  the FastAPI lifespan handler. Foreign keys are enabled per connection.
+- Schema (normalized): `users`, `boards` (one per user), `columns` (ordered by
+  `position`), `cards` (ordered by `position` within a column). See
+  `docs/DATABASE.md`.
+- `get_db` is a FastAPI dependency yielding a connection that commits on success
+  and always closes.
+- `app/repository.py` holds all data access: it lazily creates the user/board on
+  first request, returns the board in the frontend's shape (integer PKs are
+  serialized as strings), and keeps card positions contiguous (0-based) by
+  renumbering on every write/move. Card moves park the moved card at a sentinel
+  position and use a temporary negative range to avoid `UNIQUE(column_id,
+  position)` collisions mid-update.
 
 ## Commands
 
@@ -72,5 +100,4 @@ Run the full stack via Docker using the scripts in `scripts/` (see `scripts/AGEN
 
 ## Notes for later parts
 
-- Database (Parts 5-6): normalized SQLite (`users`, `boards`, `columns`, `cards`), created if absent. DB files are gitignored (`*.db`).
 - AI (Parts 8-9): OpenRouter calls using `OPENROUTER_API_KEY` from `.env`, model `deepseek/deepseek-v4-flash`, with Structured Outputs.

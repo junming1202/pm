@@ -47,12 +47,6 @@ def test_board_requires_session():
     fresh = TestClient(app)
     assert fresh.get("/api/board").status_code == 401
 
-    authed = TestClient(app)
-    authed.post("/api/login", json=GOOD)
-    response = authed.get("/api/board")
-    assert response.status_code == 200
-    assert response.json() == {"owner": "user"}
-
 
 def test_forged_cookie_rejected():
     fresh = TestClient(app)

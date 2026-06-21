@@ -95,7 +95,7 @@ Tests / success criteria:
 - [x] Define column/card ordering strategy (e.g., position integers) and constraints.
 - [x] Document the schema and rationale in `docs/` (e.g., `docs/DATABASE.md`).
 - [x] Specify the "create DB if not exists" + seed behavior.
-- [ ] Get user sign-off on the schema before implementation.
+- [x] Get user sign-off on the schema before implementation.
 
 Tests / success criteria:
 - `docs/DATABASE.md` describes tables, columns, types, keys, relationships, and ordering.
@@ -106,12 +106,12 @@ Tests / success criteria:
 
 ## Part 6: Backend (board CRUD APIs + persistence)
 
-- [ ] Implement DB layer: connect to SQLite, create tables if absent, seed defaults for a new user/board.
-- [ ] `GET /api/board` returns the authenticated user's board (columns + cards, ordered).
-- [ ] Endpoints to rename a column.
-- [ ] Endpoints to create, edit, delete, and move cards (reorder within and across columns).
-- [ ] Ensure ordering integrity on move/insert/delete.
-- [ ] Update `backend/AGENTS.md` with the data layer and routes.
+- [x] Implement DB layer: connect to SQLite, create tables if absent, seed defaults for a new user/board.
+- [x] `GET /api/board` returns the authenticated user's board (columns + cards, ordered).
+- [x] Endpoints to rename a column.
+- [x] Endpoints to create, edit, delete, and move cards (reorder within and across columns).
+- [x] Ensure ordering integrity on move/insert/delete.
+- [x] Update `backend/AGENTS.md` with the data layer and routes.
 
 Tests / success criteria:
 - DB is created automatically on first run if missing.

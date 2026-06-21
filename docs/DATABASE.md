@@ -99,9 +99,8 @@ users (1) ---- (1) boards (1) ---- (N) columns (1) ---- (N) cards
 - `Column` <- `columns` row (`id`, `title`), ordered by `position`; `cardIds`
   derived from its `cards` ordered by `position`.
 - `cards` lookup <- `cards` rows (`id`, `title`, `details`).
-- Ids are integers in the DB; the API serializes them as strings (or the
-  frontend coerces) to match the existing `string` id types. Final id format to
-  be settled in Part 6/7; no schema impact.
+- Ids are integer PKs in the DB; the API serializes them as strings to match the
+  existing frontend `string` id types.
 
 ## Out of scope for the MVP
 
