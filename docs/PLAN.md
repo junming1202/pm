@@ -91,10 +91,10 @@ Tests / success criteria:
 
 ## Part 5: Database modeling (normalized SQLite)
 
-- [ ] Propose normalized schema: `users`, `boards`, `columns`, `cards` (with ordering and FKs).
-- [ ] Define column/card ordering strategy (e.g., position integers) and constraints.
-- [ ] Document the schema and rationale in `docs/` (e.g., `docs/DATABASE.md`).
-- [ ] Specify the "create DB if not exists" + seed behavior.
+- [x] Propose normalized schema: `users`, `boards`, `columns`, `cards` (with ordering and FKs).
+- [x] Define column/card ordering strategy (e.g., position integers) and constraints.
+- [x] Document the schema and rationale in `docs/` (e.g., `docs/DATABASE.md`).
+- [x] Specify the "create DB if not exists" + seed behavior.
 - [ ] Get user sign-off on the schema before implementation.
 
 Tests / success criteria:
