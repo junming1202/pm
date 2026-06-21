@@ -15,23 +15,28 @@ export type BoardData = {
   cards: Record<string, Card>;
 };
 
-const isColumnId = (columns: Column[], id: string) =>
-  columns.some((column) => column.id === id);
+// Droppable column zones are namespaced so a column id can never be mistaken for
+// a card id (the backend numbers both from 1, so "2" could be either).
+const COLUMN_PREFIX = "column:";
 
-const findColumnId = (columns: Column[], id: string) => {
-  if (isColumnId(columns, id)) {
-    return id;
-  }
-  return columns.find((column) => column.cardIds.includes(id))?.id;
-};
+export const columnDropId = (columnId: string) => `${COLUMN_PREFIX}${columnId}`;
+
+const asColumnId = (id: string) =>
+  id.startsWith(COLUMN_PREFIX) ? id.slice(COLUMN_PREFIX.length) : null;
+
+// The active id is always a card; locate the column that holds it.
+const columnIdOfCard = (columns: Column[], cardId: string) =>
+  columns.find((column) => column.cardIds.includes(cardId))?.id;
 
 export const moveCard = (
   columns: Column[],
   activeId: string,
   overId: string
 ): Column[] => {
-  const activeColumnId = findColumnId(columns, activeId);
-  const overColumnId = findColumnId(columns, overId);
+  const activeColumnId = columnIdOfCard(columns, activeId);
+  // The drop target is either a column zone (namespaced) or another card.
+  const droppedOnColumnId = asColumnId(overId);
+  const overColumnId = droppedOnColumnId ?? columnIdOfCard(columns, overId);
 
   if (!activeColumnId || !overColumnId) {
     return columns;
@@ -44,7 +49,7 @@ export const moveCard = (
     return columns;
   }
 
-  const isOverColumn = isColumnId(columns, overId);
+  const isOverColumn = droppedOnColumnId !== null;
 
   if (activeColumnId === overColumnId) {
     if (isOverColumn) {
