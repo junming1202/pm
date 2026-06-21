@@ -3,8 +3,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-# Directory containing the built/static frontend served at "/".
-# In Part 3 this is replaced by the Next.js static export.
+# Directory containing the built Next.js static export, served at "/".
+# Populated by the Docker build (frontend "out/" is copied here).
+# May be absent during local backend-only development.
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 app = FastAPI(title="Project Management MVP")
@@ -21,4 +22,6 @@ def hello() -> dict[str, str]:
 
 
 # Serve the static site at "/". Mounted last so /api routes take precedence.
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+# Skipped when the export is not present (e.g. local backend-only dev).
+if STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

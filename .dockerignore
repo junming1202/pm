@@ -1,0 +1,17 @@
+# Python
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.db
+
+# Node / Next.js
+**/node_modules
+frontend/.next
+frontend/out
+frontend/test-results
+frontend/playwright-report
+
+# Misc
+.git
+.env

@@ -13,22 +13,27 @@ Python FastAPI service. Serves the JSON API under `/api/*` and the static fronte
 ```
 backend/
   pyproject.toml      Project metadata and dependencies (runtime + dev group)
-  Dockerfile          Builds the image (uv base image, runs uvicorn)
-  .dockerignore       Excludes venv, caches, tests, db files from the image
+  uv.lock             Locked dependency versions
   app/
     __init__.py
     main.py           FastAPI app: API routes + static mount
-  static/
-    index.html        Placeholder page (Part 3 replaces with Next.js export)
   tests/
     test_api.py       Endpoint tests (health, hello, index)
 ```
+
+The Docker image is built from the root `Dockerfile` (multi-stage): stage 1
+builds the Next.js static export, stage 2 is this backend with the export copied
+into `static/`. There is no `static/` directory in the repo; it only exists
+inside the image (and is gitignored if generated locally).
 
 ## API
 
 - `GET /api/health` -> `{"status": "ok"}`
 - `GET /api/hello` -> `{"message": "Hello from FastAPI"}`
-- `/` -> static site (`static/index.html`), mounted last so `/api/*` takes precedence.
+- `/` -> Next.js static export (served from `static/` when present), mounted
+  last so `/api/*` takes precedence. The mount is skipped if `static/` is
+  absent (local backend-only dev), so `GET /` only works in the Docker image
+  or after copying the frontend `out/` into `backend/static`.
 
 ## Commands
 

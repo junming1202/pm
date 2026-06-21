@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Static HTML export, served by the FastAPI backend at "/".
+  output: "export",
 };
 
 export default nextConfig;

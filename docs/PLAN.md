@@ -57,11 +57,11 @@ Tests / success criteria:
 
 ## Part 3: Add in Frontend (static build served by backend)
 
-- [ ] Configure Next.js for static export (`output: "export"`, image/asset settings as needed).
-- [ ] Build the frontend and wire output into the Docker image so FastAPI serves it at `/`.
-- [ ] Ensure SPA-style routing/asset paths resolve correctly when served by FastAPI.
-- [ ] Confirm the existing demo Kanban board renders at `/` in the container.
-- [ ] Keep/adjust existing Vitest and Playwright tests for the served build.
+- [x] Configure Next.js for static export (`output: "export"`, image/asset settings as needed).
+- [x] Build the frontend and wire output into the Docker image so FastAPI serves it at `/`.
+- [x] Ensure SPA-style routing/asset paths resolve correctly when served by FastAPI.
+- [x] Confirm the existing demo Kanban board renders at `/` in the container.
+- [x] Keep/adjust existing Vitest and Playwright tests for the served build.
 
 Tests / success criteria:
 - Frontend unit tests pass (`npm run test:unit`).

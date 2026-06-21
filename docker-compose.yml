@@ -1,7 +1,7 @@
 services:
   app:
     build:
-      context: ./backend
+      context: .
     container_name: pm-app
     ports:
       - "8000:8000"
