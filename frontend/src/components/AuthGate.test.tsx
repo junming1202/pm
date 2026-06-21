@@ -6,6 +6,21 @@ import { AuthGate } from "@/components/AuthGate";
 // Minimal fetch mock keyed by path. Each entry returns a Response-like object.
 type Handler = (init?: RequestInit) => { ok: boolean; body: unknown };
 
+// The board the KanbanBoard fetches once authenticated.
+const emptyBoard = {
+  id: "1",
+  name: "My Board",
+  columns: [
+    { id: "1", title: "Backlog", cardIds: [] },
+    { id: "2", title: "Discovery", cardIds: [] },
+    { id: "3", title: "In Progress", cardIds: [] },
+    { id: "4", title: "Review", cardIds: [] },
+    { id: "5", title: "Done", cardIds: [] },
+  ],
+  cards: {},
+};
+const boardHandler: Handler = () => ({ ok: true, body: emptyBoard });
+
 const makeFetch = (handlers: Record<string, Handler>) =>
   vi.fn(async (url: string, init?: RequestInit) => {
     const path = url.replace("/api", "");
@@ -41,6 +56,7 @@ describe("AuthGate", () => {
       makeFetch({
         "GET /me": () => ({ ok: false, body: { detail: "no" } }),
         "POST /login": () => ({ ok: true, body: { username: "user" } }),
+        "GET /board": boardHandler,
       })
     );
     render(<AuthGate />);
@@ -80,7 +96,10 @@ describe("AuthGate", () => {
   it("stays logged in across refresh when the session is valid", async () => {
     vi.stubGlobal(
       "fetch",
-      makeFetch({ "GET /me": () => ({ ok: true, body: { username: "user" } }) })
+      makeFetch({
+        "GET /me": () => ({ ok: true, body: { username: "user" } }),
+        "GET /board": boardHandler,
+      })
     );
     render(<AuthGate />);
     expect(await screen.findByText("Kanban Studio")).toBeInTheDocument();
@@ -93,6 +112,7 @@ describe("AuthGate", () => {
       makeFetch({
         "GET /me": () => ({ ok: true, body: { username: "user" } }),
         "POST /logout": () => ({ ok: true, body: { ok: true } }),
+        "GET /board": boardHandler,
       })
     );
     render(<AuthGate />);

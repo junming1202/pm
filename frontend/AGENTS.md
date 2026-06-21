@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js (App Router) single-board Kanban UI, built as a static export (`output: "export"`) and served by FastAPI. Auth (session cookies) gates the board; board data is still in-memory seed data until Parts 6/7 wire it to the backend. An AI chat sidebar arrives in Part 10.
+Next.js (App Router) single-board Kanban UI, built as a static export (`output: "export"`) and served by FastAPI. Auth (session cookies) gates the board; board data is fetched from and persisted to the backend (`GET /api/board` plus column/card mutations). An AI chat sidebar arrives in Part 10.
 
 ## Stack
 
@@ -29,8 +29,8 @@ src/
     NewCardForm.tsx   Inline form to add a card to a column
     KanbanBoard.test.tsx   Component/integration test
   lib/
-    api.ts            Backend API client (login, logout, me); fetch with credentials
-    kanban.ts         Types (Card, Column, BoardData), initialData seed, moveCard, createId
+    api.ts            Backend API client (auth + board CRUD); fetch with credentials
+    kanban.ts         Types (Card, Column, BoardData), moveCard, locateCard
     kanban.test.ts    Unit tests for moveCard / helpers
   test/
     setup.ts          Vitest setup (jest-dom matchers)
@@ -47,10 +47,9 @@ type Column = { id: string; title: string; cardIds: string[] };
 type BoardData = { columns: Column[]; cards: Record<string, Card> };
 ```
 
-- `columns` keeps ordering; `cards` is a lookup keyed by id; column membership/order lives in `cardIds`.
-- `initialData` is the hardcoded seed (5 columns, 8 cards) used as the demo's starting state.
+- `columns` keeps ordering; `cards` is a lookup keyed by id; column membership/order lives in `cardIds`. Shape mirrors the backend's `GET /api/board` response.
 - `moveCard(columns, activeId, overId)` is a pure reducer for drag-and-drop (same-column reorder and cross-column move). Keep it pure and well-tested.
-- `createId(prefix)` generates client-side ids.
+- `locateCard(columns, cardId)` returns `{ columnId, index }` for a card; used to turn a drag result into the backend move payload (`{ column_id, index }`).
 
 ## Auth
 
@@ -66,8 +65,8 @@ type BoardData = { columns: Column[]; cards: Record<string, Card> };
 
 ## State and conventions
 
-- `KanbanBoard` is a client component (`"use client"`) and holds all board state via `useState`. State is in-memory only today (resets on refresh). It accepts optional `user`/`onLogout` props; when absent (e.g. unit tests) it renders without the logout control.
-- Mutations are immutable updates; column reordering goes through `moveCard`.
+- `KanbanBoard` is a client component (`"use client"`). On mount it fetches the board from `GET /api/board` (loading/error states with a retry button). It accepts optional `user`/`onLogout` props; when absent (e.g. unit tests) it renders without the logout control.
+- Mutations call `lib/api.ts` (create/update/delete/move card, rename column); each endpoint returns the full board, which replaces local state. Moves are optimistic (reorder locally via `moveCard`, then persist); column renames are optimistic and debounced (400ms). On any failure the board reloads from the server.
 - Styling uses CSS variables defined in `globals.css` (see project color scheme). Prefer variables over hardcoded hex.
 - Test ids: columns expose `data-testid="column-<columnId>"`, cards expose `data-testid="card-<cardId>"`. e2e tests rely on these.
 
@@ -83,12 +82,17 @@ npm run dev        # dev server (next dev)
 npm run build      # production build
 npm run lint
 npm run test:unit  # vitest
-npm run test:e2e   # playwright (starts dev server on 127.0.0.1:3000)
+npm run test:e2e   # playwright against the full stack (see below)
 npm run test:all   # unit then e2e
 ```
+
+E2E (Playwright) runs against the full stack, not the dev server. Start it first
+with `../scripts/start.sh` (FastAPI serving the static export on
+`http://localhost:8000`), then run `npm run test:e2e`. Override the target with
+`E2E_BASE_URL`. Each E2E test logs in and resets the board to empty first.
 
 ## Notes for later parts
 
 - Keep everything client-rendered: the app is built with `output: "export"`. Avoid Next.js server-only features (server actions, route handlers, dynamic SSR).
-- API integration (Parts 6/7) replaces the in-memory `initialData` with data fetched from the backend; `moveCard` and the reducer logic stay, but persistence becomes API calls in `lib/api.ts`.
+- API integration (Parts 6/7) is done: the board is fetched from the backend and all mutations persist via `lib/api.ts`. `moveCard` and the reducer logic stay client-side; persistence is API calls.
 - AI chat (Part 10) adds a sidebar widget; when the AI returns a board update, the UI must refresh to reflect it.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -13,17 +13,56 @@ import {
 } from "@dnd-kit/core";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
-import type { User } from "@/lib/api";
+import { locateCard, moveCard, type BoardData } from "@/lib/kanban";
+import { api, type User } from "@/lib/api";
 
 type KanbanBoardProps = {
   user?: User;
   onLogout?: () => void;
 };
 
+type Status = "loading" | "ready" | "error";
+
 export const KanbanBoard = ({ user, onLogout }: KanbanBoardProps = {}) => {
-  const [board, setBoard] = useState<BoardData>(() => initialData);
+  const [board, setBoard] = useState<BoardData | null>(null);
+  const [status, setStatus] = useState<Status>("loading");
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  // Rename calls fire on every keystroke; debounce so we save the final value.
+  const renameTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const loadBoard = async () => {
+    try {
+      setBoard(await api.getBoard());
+      setStatus("ready");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  const retry = () => {
+    setStatus("loading");
+    void loadBoard();
+  };
+
+  useEffect(() => {
+    let active = true;
+    api
+      .getBoard()
+      .then((data) => {
+        if (active) {
+          setBoard(data);
+          setStatus("ready");
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setStatus("error");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -31,7 +70,7 @@ export const KanbanBoard = ({ user, onLogout }: KanbanBoardProps = {}) => {
     })
   );
 
-  const cardsById = useMemo(() => board.cards, [board.cards]);
+  const cardsById = useMemo(() => board?.cards ?? {}, [board]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -41,59 +80,84 @@ export const KanbanBoard = ({ user, onLogout }: KanbanBoardProps = {}) => {
     const { active, over } = event;
     setActiveCardId(null);
 
-    if (!over || active.id === over.id) {
+    if (!board || !over || active.id === over.id) {
       return;
     }
 
-    setBoard((prev) => ({
-      ...prev,
-      columns: moveCard(prev.columns, active.id as string, over.id as string),
-    }));
+    const cardId = active.id as string;
+    const nextColumns = moveCard(board.columns, cardId, over.id as string);
+    const target = locateCard(nextColumns, cardId);
+    if (!target) {
+      return;
+    }
+
+    // Optimistically reorder, then persist; reload from server on failure.
+    setBoard({ ...board, columns: nextColumns });
+    api
+      .moveCard(cardId, target.columnId, target.index)
+      .then(setBoard)
+      .catch(loadBoard);
   };
 
   const handleRenameColumn = (columnId: string, title: string) => {
-    setBoard((prev) => ({
-      ...prev,
-      columns: prev.columns.map((column) =>
+    if (!board) {
+      return;
+    }
+    // Optimistic: reflect the new title immediately, debounce the save.
+    setBoard({
+      ...board,
+      columns: board.columns.map((column) =>
         column.id === columnId ? { ...column, title } : column
       ),
-    }));
+    });
+    clearTimeout(renameTimers.current[columnId]);
+    renameTimers.current[columnId] = setTimeout(() => {
+      api.renameColumn(columnId, title).then(setBoard).catch(loadBoard);
+    }, 400);
   };
 
   const handleAddCard = (columnId: string, title: string, details: string) => {
-    const id = createId("card");
-    setBoard((prev) => ({
-      ...prev,
-      cards: {
-        ...prev.cards,
-        [id]: { id, title, details: details || "No details yet." },
-      },
-      columns: prev.columns.map((column) =>
-        column.id === columnId
-          ? { ...column, cardIds: [...column.cardIds, id] }
-          : column
-      ),
-    }));
+    api.createCard(columnId, title, details).then(setBoard).catch(loadBoard);
   };
 
-  const handleDeleteCard = (columnId: string, cardId: string) => {
-    setBoard((prev) => {
-      return {
-        ...prev,
-        cards: Object.fromEntries(
-          Object.entries(prev.cards).filter(([id]) => id !== cardId)
-        ),
-        columns: prev.columns.map((column) =>
-          column.id === columnId
-            ? {
-                ...column,
-                cardIds: column.cardIds.filter((id) => id !== cardId),
-              }
-            : column
-        ),
-      };
-    });
+  const handleDeleteCard = (_columnId: string, cardId: string) => {
+    api.deleteCard(cardId).then(setBoard).catch(loadBoard);
   };
+
+  const handleUpdateCard = (cardId: string, title: string, details: string) => {
+    api.updateCard(cardId, title, details).then(setBoard).catch(loadBoard);
+  };
+
+  if (status === "error") {
+    return (
+      <div
+        role="alert"
+        className="flex min-h-screen flex-col items-center justify-center gap-4 text-center"
+      >
+        <p className="text-sm font-semibold text-[var(--navy-dark)]">
+          Could not load your board.
+        </p>
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-full bg-[var(--secondary-purple)] px-5 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "loading" || !board) {
+    return (
+      <div
+        data-testid="board-loading"
+        className="flex min-h-screen items-center justify-center text-sm font-semibold uppercase tracking-[0.3em] text-[var(--gray-text)]"
+      >
+        Loading board...
+      </div>
+    );
+  }
 
   const activeCard = activeCardId ? cardsById[activeCardId] : null;
 
@@ -170,6 +234,7 @@ export const KanbanBoard = ({ user, onLogout }: KanbanBoardProps = {}) => {
                 onRename={handleRenameColumn}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
+                onUpdateCard={handleUpdateCard}
               />
             ))}
           </section>

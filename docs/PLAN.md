@@ -123,11 +123,11 @@ Tests / success criteria:
 
 ## Part 7: Frontend + Backend integration (persistent board)
 
-- [ ] Replace in-memory `initialData` with data fetched from `GET /api/board`.
-- [ ] Wire rename/add/edit/delete/move actions to backend endpoints.
-- [ ] Handle loading and error states; keep optimistic UI where sensible.
-- [ ] Ensure refresh reloads the persisted board for the logged-in user.
-- [ ] Update tests to cover API-backed behavior.
+- [x] Replace in-memory `initialData` with data fetched from `GET /api/board`.
+- [x] Wire rename/add/edit/delete/move actions to backend endpoints.
+- [x] Handle loading and error states; keep optimistic UI where sensible.
+- [x] Ensure refresh reloads the persisted board for the logged-in user.
+- [x] Update tests to cover API-backed behavior.
 
 Tests / success criteria:
 - Unit tests for the API client and state wiring.
