@@ -13,6 +13,7 @@ This document is the working checklist. Each part lists substeps, tests, and suc
 - AI: OpenRouter, model id `deepseek/deepseek-v4-flash` (kept exactly as specified). `OPENROUTER_API_KEY` read from `.env`.
 - One board per user for the MVP; fixed columns that can be renamed.
 - Coding standards: simple, concise, no over-engineering, no emojis, root-cause before fixes.
+- Drag-and-drop ids: columns and cards are both numbered from 1, so their ids can collide. Column drop zones are namespaced as `column:<id>` (`columnDropId` in `frontend/src/lib/kanban.ts`) so the move reducer never confuses a card id with a column id. Collision detection uses dnd-kit `closestCorners`.
 
 ## Conventions
 
@@ -26,7 +27,7 @@ This document is the working checklist. Each part lists substeps, tests, and suc
 
 - [x] Enrich `docs/PLAN.md` with detailed substeps, tests, and success criteria.
 - [x] Create `frontend/AGENTS.md` describing existing frontend code.
-- [ ] User reviews and approves the plan before any further work.
+- [x] User reviews and approves the plan before any further work.
 
 Tests / success criteria:
 - Plan covers all 10 parts with actionable checklists and verifiable success criteria.
@@ -134,6 +135,9 @@ Tests / success criteria:
 - E2E: log in, add/edit/move/delete a card, refresh, and confirm changes persisted.
 - Column rename persists after refresh.
 - Errors surface clearly without breaking the board.
+
+Post-Part-7 fix:
+- [x] Fixed drag-and-drop card move failing when a card id matched a column id (shared 1-based numbering). Namespaced column drop zones (`column:<id>`); added a regression unit test. Verified move persists across refresh; unit, E2E, and backend tests pass.
 
 ---
 
