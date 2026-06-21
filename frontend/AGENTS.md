@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js (App Router) single-board Kanban UI. Currently a frontend-only demo with in-memory state and hardcoded seed data. Later parts wire it to the backend API, add auth, and add an AI chat sidebar.
+Next.js (App Router) single-board Kanban UI, built as a static export (`output: "export"`) and served by FastAPI. Auth (session cookies) gates the board; board data is still in-memory seed data until Parts 6/7 wire it to the backend. An AI chat sidebar arrives in Part 10.
 
 ## Stack
 
@@ -19,13 +19,17 @@ src/
     page.tsx          Home route, renders <KanbanBoard />
     globals.css       Tailwind import + CSS variables (color scheme, surfaces, shadows)
   components/
-    KanbanBoard.tsx   Owns board state, DndContext, drag/rename/add/delete handlers
+    AuthGate.tsx      Checks /api/me; renders LoginScreen or KanbanBoard; owns login/logout
+    AuthGate.test.tsx Auth flow tests (login, error, persist-on-refresh, logout)
+    LoginScreen.tsx   On-brand sign-in form (data-testid="login-form")
+    KanbanBoard.tsx   Owns board state, DndContext, drag/rename/add/delete; shows user + logout
     KanbanColumn.tsx  Droppable column, editable title, hosts cards + NewCardForm
     KanbanCard.tsx    Sortable card, delete control
     KanbanCardPreview.tsx  Card rendering used in the DragOverlay
     NewCardForm.tsx   Inline form to add a card to a column
     KanbanBoard.test.tsx   Component/integration test
   lib/
+    api.ts            Backend API client (login, logout, me); fetch with credentials
     kanban.ts         Types (Card, Column, BoardData), initialData seed, moveCard, createId
     kanban.test.ts    Unit tests for moveCard / helpers
   test/
@@ -48,9 +52,21 @@ type BoardData = { columns: Column[]; cards: Record<string, Card> };
 - `moveCard(columns, activeId, overId)` is a pure reducer for drag-and-drop (same-column reorder and cross-column move). Keep it pure and well-tested.
 - `createId(prefix)` generates client-side ids.
 
+## Auth
+
+- `AuthGate` (client component) is the entry point rendered by `page.tsx`. On
+  mount it calls `GET /api/me`; if authenticated it shows `KanbanBoard`,
+  otherwise `LoginScreen`. It owns `login`/`logout` and passes `user`/`onLogout`
+  to the board.
+- The session is a backend httponly cookie, so login survives a page refresh
+  (the cookie is sent automatically; `AuthGate` re-checks `/api/me` on load).
+- `lib/api.ts` wraps fetch with `credentials: "include"` and base path `/api`.
+  Same-origin in the container (FastAPI serves the static export), so relative
+  paths work.
+
 ## State and conventions
 
-- `KanbanBoard` is a client component (`"use client"`) and holds all board state via `useState`. State is in-memory only today (resets on refresh).
+- `KanbanBoard` is a client component (`"use client"`) and holds all board state via `useState`. State is in-memory only today (resets on refresh). It accepts optional `user`/`onLogout` props; when absent (e.g. unit tests) it renders without the logout control.
 - Mutations are immutable updates; column reordering goes through `moveCard`.
 - Styling uses CSS variables defined in `globals.css` (see project color scheme). Prefer variables over hardcoded hex.
 - Test ids: columns expose `data-testid="column-<columnId>"`, cards expose `data-testid="card-<cardId>"`. e2e tests rely on these.
@@ -73,7 +89,6 @@ npm run test:all   # unit then e2e
 
 ## Notes for later parts
 
-- Static export: the app will be built with `output: "export"` and served by FastAPI at `/`. Avoid Next.js server-only features (server actions, route handlers, dynamic SSR). Keep everything client-rendered.
-- API integration replaces the in-memory `initialData` with data fetched from the backend; `moveCard` and the reducer logic stay, but persistence becomes API calls.
-- Auth (Part 4) gates the board behind a real login backed by session cookies; the board must survive a page refresh while logged in.
+- Keep everything client-rendered: the app is built with `output: "export"`. Avoid Next.js server-only features (server actions, route handlers, dynamic SSR).
+- API integration (Parts 6/7) replaces the in-memory `initialData` with data fetched from the backend; `moveCard` and the reducer logic stay, but persistence becomes API calls in `lib/api.ts`.
 - AI chat (Part 10) adds a sidebar widget; when the AI returns a board update, the UI must refresh to reflect it.

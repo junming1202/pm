@@ -73,13 +73,13 @@ Tests / success criteria:
 
 ## Part 4: Fake user sign in (real session cookies)
 
-- [ ] Backend: `POST /api/login` validating `user`/`password`, issuing a signed session cookie/token.
-- [ ] Backend: `POST /api/logout` clearing the session.
-- [ ] Backend: `GET /api/me` returning the current user when authenticated, 401 otherwise.
-- [ ] Protect board APIs so they require a valid session.
-- [ ] Frontend: login screen shown when unauthenticated; board shown when authenticated.
-- [ ] Frontend: logout control; session persists across page refresh (cookie-based).
-- [ ] Document the auth approach in `docs/` and the relevant `AGENTS.md`.
+- [x] Backend: `POST /api/login` validating `user`/`password`, issuing a signed session cookie/token.
+- [x] Backend: `POST /api/logout` clearing the session.
+- [x] Backend: `GET /api/me` returning the current user when authenticated, 401 otherwise.
+- [x] Protect board APIs so they require a valid session.
+- [x] Frontend: login screen shown when unauthenticated; board shown when authenticated.
+- [x] Frontend: logout control; session persists across page refresh (cookie-based).
+- [x] Document the auth approach in `docs/` and the relevant `AGENTS.md`.
 
 Tests / success criteria:
 - Backend tests: valid login sets session and returns 200; invalid login returns 401.

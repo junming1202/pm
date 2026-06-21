@@ -14,8 +14,14 @@ import {
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
+import type { User } from "@/lib/api";
 
-export const KanbanBoard = () => {
+type KanbanBoardProps = {
+  user?: User;
+  onLogout?: () => void;
+};
+
+export const KanbanBoard = ({ user, onLogout }: KanbanBoardProps = {}) => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
@@ -111,13 +117,29 @@ export const KanbanBoard = () => {
                 and capture quick notes without getting buried in settings.
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
-                Focus
-              </p>
-              <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
-                One board. Five columns. Zero clutter.
-              </p>
+            <div className="flex flex-col items-end gap-3">
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+                    {user.username}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="rounded-full border border-[var(--stroke)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--secondary-purple)] transition hover:border-[var(--secondary-purple)]"
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : null}
+              <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--gray-text)]">
+                  Focus
+                </p>
+                <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
+                  One board. Five columns. Zero clutter.
+                </p>
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
