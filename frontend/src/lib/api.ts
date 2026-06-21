@@ -6,6 +6,14 @@ import type { BoardData } from "@/lib/kanban";
 
 export type User = { username: string };
 
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+export type ChatResponse = {
+  reply: string;
+  applied: unknown[];
+  board: BoardData;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...init,
@@ -55,5 +63,10 @@ export const api = {
     request<BoardData>(`/cards/${cardId}/move`, {
       method: "POST",
       body: JSON.stringify({ column_id: Number(columnId), index }),
+    }),
+  chat: (message: string, history: ChatMessage[]) =>
+    request<ChatResponse>("/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, history }),
     }),
 };

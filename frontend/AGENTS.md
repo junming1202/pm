@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js (App Router) single-board Kanban UI, built as a static export (`output: "export"`) and served by FastAPI. Auth (session cookies) gates the board; board data is fetched from and persisted to the backend (`GET /api/board` plus column/card mutations). An AI chat sidebar arrives in Part 10.
+Next.js (App Router) single-board Kanban UI, built as a static export (`output: "export"`) and served by FastAPI. Auth (session cookies) gates the board; board data is fetched from and persisted to the backend (`GET /api/board` plus column/card mutations). An AI chat sidebar lets the user ask the assistant to create, edit, and move cards; when the AI applies changes the board refreshes automatically.
 
 ## Stack
 
@@ -27,6 +27,8 @@ src/
     KanbanCard.tsx    Sortable card, delete control
     KanbanCardPreview.tsx  Card rendering used in the DragOverlay
     NewCardForm.tsx   Inline form to add a card to a column
+    ChatSidebar.tsx   AI chat widget; sends message + history to /api/chat, renders replies, refreshes board on applied changes
+    ChatSidebar.test.tsx   Chat component tests (send/reply, history, refresh-on-update, loading/error/empty)
     KanbanBoard.test.tsx   Component/integration test
   lib/
     api.ts            Backend API client (auth + board CRUD); fetch with credentials
@@ -36,7 +38,7 @@ src/
     setup.ts          Vitest setup (jest-dom matchers)
     vitest.d.ts       Type augmentation for matchers
 tests/
-  kanban.spec.ts      Playwright e2e (load board, add card, drag between columns)
+  kanban.spec.ts      Playwright e2e (load board, add card, drag between columns, AI chat adds a card)
 ```
 
 ## Data model (`src/lib/kanban.ts`)
@@ -67,6 +69,7 @@ type BoardData = { columns: Column[]; cards: Record<string, Card> };
 
 - `KanbanBoard` is a client component (`"use client"`). On mount it fetches the board from `GET /api/board` (loading/error states with a retry button). It accepts optional `user`/`onLogout` props; when absent (e.g. unit tests) it renders without the logout control.
 - Mutations call `lib/api.ts` (create/update/delete/move card, rename column); each endpoint returns the full board, which replaces local state. Moves are optimistic (reorder locally via `moveCard`, then persist); column renames are optimistic and debounced (400ms). On any failure the board reloads from the server.
+- `ChatSidebar` (rendered by `KanbanBoard` on `lg` screens and up) keeps its own message history and calls `api.chat(message, history)` (`POST /api/chat`). The response is `{ reply, applied, board }`; the reply is appended to the thread and, when `applied.length > 0`, the returned board is pushed up via the `onBoardUpdate` callback (`setBoard`) so the UI reflects AI changes without a manual refresh. It handles empty, loading ("Thinking..."), and error states.
 - Styling uses CSS variables defined in `globals.css` (see project color scheme). Prefer variables over hardcoded hex.
 - Test ids: columns expose `data-testid="column-<columnId>"`, cards expose `data-testid="card-<cardId>"`. e2e tests rely on these.
 
@@ -95,4 +98,4 @@ with `../scripts/start.sh` (FastAPI serving the static export on
 
 - Keep everything client-rendered: the app is built with `output: "export"`. Avoid Next.js server-only features (server actions, route handlers, dynamic SSR).
 - API integration (Parts 6/7) is done: the board is fetched from the backend and all mutations persist via `lib/api.ts`. `moveCard` and the reducer logic stay client-side; persistence is API calls.
-- AI chat (Part 10) adds a sidebar widget; when the AI returns a board update, the UI must refresh to reflect it.
+- AI chat (Part 10) is done: `ChatSidebar` calls `/api/chat` and refreshes the board via `onBoardUpdate` when the AI applies changes. The E2E test hits real OpenRouter, so it asserts the no-refresh board update rather than exact AI wording.

@@ -181,17 +181,22 @@ Tests / success criteria:
 
 ## Part 10: AI chat sidebar UI
 
-- [ ] Build a sidebar chat widget matching the color scheme (yellow/blue/purple/navy/gray).
-- [ ] Send user messages (with history) to the chat endpoint; render replies.
-- [ ] When the AI updates the board, refresh the board UI automatically.
-- [ ] Handle loading, errors, and empty states.
-- [ ] Add unit/integration and E2E tests for the chat flow.
+- [x] Build a sidebar chat widget matching the color scheme (yellow/blue/purple/navy/gray) (`ChatSidebar.tsx`, rendered by `KanbanBoard` on `lg`+).
+- [x] Send user messages (with history) to the chat endpoint; render replies (`api.chat` -> `POST /api/chat`; user/assistant bubbles).
+- [x] When the AI updates the board, refresh the board UI automatically (`onBoardUpdate(board)` -> `setBoard` when `applied.length > 0`).
+- [x] Handle loading, errors, and empty states ("Thinking..." pending bubble, error alert, empty-state hint).
+- [x] Add unit/integration and E2E tests for the chat flow.
+
+Decisions:
+- Sidebar lives inside `KanbanBoard` (right column, sticky) and shares the board state via `setBoard`, so AI changes and direct edits stay in one source of truth. Hidden below `lg` to keep the board usable on small screens.
+- The component owns its message history and forwards it on each call (matches the backend's `{message, history}` contract).
+- The E2E test asserts the no-refresh board update (the actual requirement) rather than exact AI wording or post-reload state, since it hits real OpenRouter and AI phrasing/latency varies. Persistence is already covered by the card-CRUD E2E and backend tests.
 
 Tests / success criteria:
-- Unit/integration tests for the chat component and refresh-on-update behavior.
-- E2E: open chat, ask the AI to add/move a card, confirm the board updates without manual refresh.
-- Chat UI is responsive and on-brand; no emojis.
-- Full stack works end to end in the Docker container.
+- Unit/integration tests for the chat component and refresh-on-update behavior. (Done in `ChatSidebar.test.tsx`: send/reply, history forwarding, refresh-on-update, no-refresh-when-empty, loading/error/empty states.)
+- E2E: open chat, ask the AI to add a card, confirm the board updates without manual refresh. (Done in `kanban.spec.ts`; passes against the Docker stack with the real key.)
+- Chat UI is responsive and on-brand; no emojis. (CSS variables for the color scheme; hidden below `lg`.)
+- Full stack works end to end in the Docker container (verified: built and ran `pm-app`, all E2E green).
 
 ---
 

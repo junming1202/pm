@@ -135,3 +135,21 @@ test("moves a card between columns and it persists", async ({ page }) => {
     page.locator('[data-testid^="column-"]').nth(2).getByText("Movable card")
   ).toBeVisible();
 });
+
+test("asks the AI to add a card and the board updates without a refresh", async ({
+  page,
+}) => {
+  const sidebar = page.getByTestId("chat-sidebar");
+  await expect(sidebar).toBeVisible();
+
+  await sidebar
+    .getByLabel("Message the assistant")
+    .fill('Add a card titled "AI created card" to the Backlog column.');
+  await sidebar.getByRole("button", { name: /send/i }).click();
+
+  // The new card appears in the board without a manual reload. This is the
+  // core Part 10 behaviour: the AI edits the board and the UI refreshes itself.
+  // OpenRouter latency varies, so allow a generous timeout.
+  const backlog = page.locator('[data-testid^="column-"]').first();
+  await expect(backlog.getByText("AI created card")).toBeVisible({ timeout: 30000 });
+});
